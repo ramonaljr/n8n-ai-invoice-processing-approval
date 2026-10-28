@@ -1,0 +1,2176 @@
+{
+  "name": "Braewick Construction Group - AI Invoice Processing & Approval",
+  "nodes": [
+    {
+      "id": "0c4113eb-3285-4c2d-b81b-ef233d35f343",
+      "name": "New Invoice Email",
+      "disabled": false,
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf",
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      }
+    },
+    {
+      "id": "326f9002-cfdb-47f7-977d-0d883942f802",
+      "name": "Has PDF Attachment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        528
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $binary.invoicePdf?.fileName ?? '' }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a81c1280-f65c-4ecc-8d95-55a60139d4a6",
+      "name": "Ignore - Not An Invoice",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        672,
+        704
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "4b1447db-5b1e-4eaf-9a52-1bb0d6598eb7",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        512
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "invoicePdf",
+        "options": {
+          "joinPages": true,
+          "keepSource": "both"
+        }
+      }
+    },
+    {
+      "id": "48a2b0b9-bab6-446b-b536-6314361751cd",
+      "name": "Text Extracted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        512
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.text }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dcd1693b-eaad-4c9f-8d03-4833273663e2",
+      "name": "Create Invoice ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1424,
+        496
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "invoiceKey",
+              "value": "={{ $('Process One Invoice Email').item.json.id }}::{{ $binary.invoicePdf.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "messageId",
+              "value": "={{ $('Process One Invoice Email').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "sourceFrom",
+              "value": "={{ $('Process One Invoice Email').item.json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "invoiceText",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "5041d00b-5864-407c-afcd-f63583bcbb6f",
+      "name": "Alert - Scanned PDF, Enter Manually",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1120,
+        592
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:page_facing_up: *Invoice is a scanned image - text can't be read*\nFrom: {{ $('Process One Invoice Email').item.json.from }}\nSubject: {{ $('Process One Invoice Email').item.json.subject }}\nPlease enter this invoice manually.",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "ee67d769-a020-4659-bb3a-5b362b66337f",
+      "name": "Seen This Invoice Before?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1872,
+        496
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.invoiceKey }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d1ea2ae7-9e34-4ce3-93b8-e0e2de8271d1",
+      "name": "Alert - Duplicate Invoice",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1872,
+        704
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:no_entry: *Duplicate invoice skipped*\nFrom: {{ $('Process One Invoice Email').item.json.from }}\n{{ $('AI Reads Invoice').isExecuted ? 'Vendor: ' + $('AI Reads Invoice').item.json.output.vendorName + ' | Invoice #: ' + $('AI Reads Invoice').item.json.output.invoiceNumber + ' - already posted to QuickBooks.' : 'This email and file were already processed.' }}",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "1b93d43f-625a-44a4-af9b-668508755699",
+      "name": "AI Reads Invoice",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        512
+      ],
+      "parameters": {
+        "text": "={{ $('Create Invoice ID').item.json.invoiceText }}",
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{ \"vendorName\": \"Kelso Groundworks Ltd\", \"invoiceNumber\": \"APP-14\", \"poNumber\": \"SC-8891\", \"jobNumber\": \"BW-2241\", \"costCode\": \"02-300 Earthworks\", \"claimType\": \"progress_claim\", \"invoiceDate\": \"2026-09-30\", \"dueDate\": \"2026-10-30\", \"currency\": \"USD\", \"claimedToDate\": 184000, \"previouslyCertified\": 142000, \"thisClaim\": 42000, \"retentionPercent\": 5, \"retentionAmount\": 2100, \"tax\": 3990, \"totalAmount\": 43890, \"lienWaiverAttached\": true, \"confidence\": 0.93 }",
+        "options": {
+          "systemPromptTemplate": "You extract accounts-payable fields from construction invoices and subcontractor payment applications. claimType must be one of: progress_claim, material_supply, plant_hire, variation, final_account. jobNumber is the project or contract number; costCode is the cost code or trade section if shown. For progress claims, capture claimedToDate, previouslyCertified and thisClaim separately - do not add them together. retentionPercent and retentionAmount are the retention withheld; set both to 0 only if the document explicitly shows no retention. lienWaiverAttached is true only if a lien waiver, statutory declaration or release is actually referenced in the document. Return only what is present - never invent a PO, job number or certified value. confidence is 0 to 1 reflecting how certain you are that every numeric field was read correctly."
+        }
+      }
+    },
+    {
+      "id": "642b7c9a-8c40-4b29-a4d3-b705df2322a7",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2400,
+        704
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4-mini",
+          "cachedResultName": "gpt-5.4-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "5b53bb55-7072-4d13-9a74-f62a56fa8649",
+      "name": "AI Sure Of The Details?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2960,
+        512
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.output.confidence }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "rightValue": 0.8
+            },
+            {
+              "leftValue": "={{ $json.output.invoiceNumber }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.output.totalAmount }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6df491a2-0708-4a21-9cf9-6858e6cfaeaa",
+      "name": "Find Purchase Order Record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "position": [
+        3952,
+        512
+      ],
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "cachedResultName": "Braewick AP Records"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "cachedResultName": "Purchase Orders"
+        },
+        "filterByFormula": "=AND({poNumber} != \"\", {poNumber} = \"{{ $('AI Reads Invoice').item.json.output.poNumber }}\")",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "e6581dfd-df9d-4546-8077-fe7d6d075f2d",
+      "name": "Ask Team To Check Details",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        3168,
+        720
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "message": "=:mag: *AI isn't sure it read this invoice correctly - please check*\nVendor: {{ $json.output.vendorName }}\nInvoice #: {{ $json.output.invoiceNumber }}\nPO #: {{ $json.output.poNumber }}\nTotal: {{ $json.output.currency }} {{ $json.output.totalAmount }}\nAI confidence: {{ Math.round($json.output.confidence * 100) }}%\n\nClick *Looks correct* to continue, or *Stop* if it needs manual entry.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Looks correct",
+            "disapproveLabel": "Stop - needs manual entry"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 12
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "c1e5dfce-22a2-412a-96ae-f73179211a04",
+      "name": "Find Delivery Record (Airtable)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "position": [
+        4304,
+        512
+      ],
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "cachedResultName": "Braewick AP Records"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "cachedResultName": "Goods Receipts"
+        },
+        "filterByFormula": "=AND({poNumber} != \"\", {poNumber} = \"{{ $('AI Reads Invoice').item.json.output.poNumber }}\")",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "bc33a878-03e0-4a39-aa2c-8ac7d9e445ef",
+      "name": "Check Invoice & Flag Issues",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4480,
+        720
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const inv = $('AI Reads Invoice').item.json.output;\nconst po = $('Find Purchase Order').item.json || {};\nconst gr = $('Find Delivery Record').item.json || {};\n\nconst invoiceTotal = Number(inv.totalAmount || 0);\nconst poAmount = Number(po.poAmount || 0);\nconst receivedAmount = Number(gr.receivedAmount || 0);\n\nconst claimType = String(inv.claimType || 'material_supply');\nconst isProgressClaim = claimType === 'progress_claim' || claimType === 'final_account' || claimType === 'variation';\nconst claimLabels = { progress_claim: 'Progress payment', material_supply: 'Materials', plant_hire: 'Equipment rental', variation: 'Change order', final_account: 'Final payment' };\nconst claimLabel = claimLabels[claimType] || claimType;\n\nconst claimedToDate = Number(inv.claimedToDate || 0);\nconst previouslyCertified = Number(inv.previouslyCertified || 0);\nconst thisClaim = Number(inv.thisClaim || 0);\nconst retentionPercent = Number(inv.retentionPercent || 0);\nconst retentionAmount = Number(inv.retentionAmount || 0);\nconst lienWaiver = inv.lienWaiverAttached === true;\n\nconst tolerance = 0.02; // amounts may differ by up to 2%\nconst flags = [];\n\n// Is there a matching purchase order and job number?\nif (!po.poNumber) { flags.push('Purchase order not found'); }\nif (!inv.jobNumber) { flags.push('Job number missing'); }\n\n// Materials and equipment: invoice must match the PO and the delivery record\nif (!isProgressClaim && !gr.poNumber) { flags.push('No delivery record found'); }\n\nconst poVariance = poAmount > 0 ? Math.abs(invoiceTotal - poAmount) / poAmount : 1;\nconst grVariance = receivedAmount > 0 ? Math.abs(invoiceTotal - receivedAmount) / receivedAmount : 1;\n\nif (!isProgressClaim && po.poNumber && poVariance > tolerance) { flags.push('Amount differs from PO by more than 2%'); }\nif (!isProgressClaim && gr.poNumber && grVariance > tolerance) { flags.push('Amount differs from delivery record by more than 2%'); }\n\n// Progress payments: the running totals must add up\nif (isProgressClaim) {\n  if (claimedToDate > 0 && poAmount > 0 && claimedToDate > poAmount * 1.001) {\n    flags.push('Billed more than the contract value');\n  }\n  if (claimedToDate > 0 && previouslyCertified > 0) {\n    const expectedThisClaim = claimedToDate - previouslyCertified;\n    if (thisClaim > 0 && Math.abs(expectedThisClaim - thisClaim) > 1) {\n      flags.push('Billing math does not add up');\n    }\n  }\n  if (retentionPercent === 0 && retentionAmount === 0) {\n    flags.push('No retention held back');\n  }\n  if (!lienWaiver) {\n    flags.push('Lien waiver missing');\n  }\n}\n\n// Checks for every invoice\nif (po.vendorName && inv.vendorName && po.vendorName.toLowerCase() !== inv.vendorName.toLowerCase()) { flags.push('Vendor name does not match PO'); }\nif (invoiceTotal > 50000) { flags.push('Large invoice (over 50k)'); }\nif (po.status && po.status !== 'open') { flags.push('Contract is not open'); }\n\nconst netPayable = Math.round((invoiceTotal - retentionAmount) * 100) / 100;\n\nreturn {\n  json: {\n    invoiceKey: $('Create Invoice ID').item.json.invoiceKey,\n    messageId: $('Create Invoice ID').item.json.messageId,\n    vendorName: inv.vendorName,\n    invoiceNumber: inv.invoiceNumber,\n    poNumber: inv.poNumber,\n    jobNumber: inv.jobNumber || '',\n    costCode: inv.costCode || '',\n    claimType: claimType,\n    claimLabel: claimLabel,\n    isProgressClaim: isProgressClaim,\n    invoiceDate: inv.invoiceDate,\n    dueDate: inv.dueDate,\n    currency: inv.currency,\n    totalAmount: invoiceTotal,\n    claimedToDate: claimedToDate,\n    previouslyCertified: previouslyCertified,\n    thisClaim: thisClaim,\n    retentionPercent: retentionPercent,\n    retentionAmount: retentionAmount,\n    netPayable: netPayable,\n    lienWaiverAttached: lienWaiver,\n    poAmount: poAmount,\n    receivedAmount: receivedAmount,\n    poVariancePct: Math.round(poVariance * 10000) / 100,\n    riskFlags: flags,\n    riskCount: flags.length,\n    routing: flags.length > 0 ? 'exception' : 'clean'\n  }\n};"
+      }
+    },
+    {
+      "id": "051edbbb-8f37-4a04-aeb3-89173c3cae20",
+      "name": "Any Issues Found?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4784,
+        512
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.routing }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "exception"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "exception"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.routing }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "clean"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clean"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "23dc389f-56f8-43c1-939d-b2061535047d",
+      "name": "Review Invoice With Issues",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        5008,
+        320
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "message": "=:warning: *Invoice needs review - issues found*\n\n*{{ $json.vendorName }}* | {{ $json.claimLabel }}\nInvoice #: {{ $json.invoiceNumber }} | PO/Contract #: {{ $json.poNumber }}\nJob #: *{{ $json.jobNumber || \"Not listed\" }}* | Cost code: {{ $json.costCode || \"Not listed\" }}\n\n{{ $json.isProgressClaim ? \"Billed so far: \" + $json.currency + \" \" + $json.claimedToDate + \"\\nAlready approved before: \" + $json.previouslyCertified + \"\\nThis bill: \" + $json.thisClaim : \"Invoice total: \" + $json.currency + \" \" + $json.totalAmount + \"\\nPO amount: \" + $json.poAmount + \"\\nDelivered value: \" + $json.receivedAmount }}\n\nHeld back (retention): {{ $json.retentionPercent }}% ({{ $json.retentionAmount }})\n*Amount to pay: {{ $json.currency }} {{ $json.netPayable }}*\nLien waiver (signed payment release): {{ $json.lienWaiverAttached ? \"Attached\" : \":x: MISSING\" }}\n\n*Issues:* {{ $json.riskFlags.join(\", \") }}{{ $json.riskFlags.includes('Purchase order not found') ? '\\n\\n:information_source: No PO was found, so there is no QuickBooks expense account for this bill. If you approve, it is NOT posted automatically - you will be asked to enter it in QuickBooks by hand.' : '' }}\n\nApprove to add this bill to QuickBooks anyway, or reject it.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 2,
+              "resumeUnit": "days"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "e402f526-4728-48b6-8f3f-a3927ba8dd3f",
+      "name": "Approve Clean Invoice",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        5008,
+        704
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "message": "=:white_check_mark: *Invoice ready for approval - all checks passed*\n\n*{{ $json.vendorName }}* | {{ $json.claimLabel }}\nInvoice #: {{ $json.invoiceNumber }} | PO/Contract #: {{ $json.poNumber }}\nJob #: {{ $json.jobNumber }} | Cost code: {{ $json.costCode }}\n\nInvoice total: {{ $json.currency }} {{ $json.totalAmount }}\nHeld back (retention): {{ $json.retentionPercent }}% ({{ $json.retentionAmount }})\n*Amount to pay: {{ $json.currency }} {{ $json.netPayable }}*\nDue: {{ $json.dueDate }}\n\nChecked: matches the PO, retention held back{{ $json.isProgressClaim ? \", lien waiver attached, billing math adds up\" : \", matches the delivery record\" }}.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 2,
+              "resumeUnit": "days"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "4ac4fb3a-e911-464c-8718-d8759a5b95d2",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5456,
+        512
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2e8060c3-d1cc-4918-b73a-ee807998fb89",
+      "name": "Add Bill To QuickBooks",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        6400,
+        288
+      ],
+      "parameters": {
+        "resource": "bill",
+        "operation": "create",
+        "VendorRef": "={{ $('Find QuickBooks Vendor').item.json.Id }}",
+        "Line": [
+          {
+            "Amount": "={{ $('Check Invoice & Flag Issues').item.json.netPayable }}",
+            "Description": "=Job {{ $('Check Invoice & Flag Issues').item.json.jobNumber }} | {{ $('Check Invoice & Flag Issues').item.json.costCode }} | {{ $('Check Invoice & Flag Issues').item.json.claimLabel }} {{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }} (after {{ $('Check Invoice & Flag Issues').item.json.retentionPercent }}% retention held back)",
+            "DetailType": "AccountBasedExpenseLineDetail",
+            "LineNum": 1,
+            "accountId": "={{ $('Find Purchase Order').item.json.qboAccountId }}"
+          }
+        ],
+        "additionalFields": {
+          "DueDate": "={{ $('Check Invoice & Flag Issues').item.json.dueDate }}",
+          "TotalAmt": "={{ $('Check Invoice & Flag Issues').item.json.netPayable }}",
+          "TxnDate": "={{ $('Check Invoice & Flag Issues').item.json.invoiceDate }}"
+        }
+      }
+    },
+    {
+      "id": "5513f031-4944-4cb0-87c1-7e7faf10e057",
+      "name": "Alert - Invoice Rejected",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        5728,
+        720
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:x: *Invoice rejected - not added to QuickBooks*\n{{ $('Check Invoice & Flag Issues').item.json.vendorName }} | {{ $('Check Invoice & Flag Issues').item.json.claimLabel }}\nInvoice #: {{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }}\nJob #: {{ $('Check Invoice & Flag Issues').item.json.jobNumber }}\nAmount to pay was: {{ $('Check Invoice & Flag Issues').item.json.currency }} {{ $('Check Invoice & Flag Issues').item.json.netPayable }}\nIssues: {{ $('Check Invoice & Flag Issues').item.json.riskFlags.join(\", \") || \"None\" }}",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "5218c7ed-0461-481c-8a6c-7ccb8e9da857",
+      "name": "Mark Email As Read",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        6848,
+        704
+      ],
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Check Invoice & Flag Issues').item.json.messageId }}"
+      }
+    },
+    {
+      "id": "7eec1105-ce79-47e3-a352-904158b171d5",
+      "name": "Sticky Note 49e05c9b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7152,
+        -64
+      ],
+      "parameters": {
+        "content": "## Sample client: Braewick Construction Group (fictional)\n\nProcesses construction invoices automatically. Handles two kinds, each checked differently:\n- **Progress payments** - subcontractors bill in stages as work gets done\n- **Material and equipment invoices**\n\n**Setup needed**\n\n**Google Sheets** - a file named \"AP Invoice Automation\" with two tabs:\n- Audit Log: invoiceKey, vendorName, invoiceNumber, poNumber, jobNumber, costCode, claimType, totalAmount, retentionAmount, netPayable, riskFlags, outcome, processedAt, executionId\n- Error Log: failedAt, workflowName, failedNode, errorMessage, executionUrl, executionId\nConnect a Google Sheets credential (Drive or Calendar logins won't work).\n\n**Airtable** - two tables:\n- Purchase Orders: poNumber, vendorName, poAmount, status, qboAccountId (QuickBooks expense account ID)\n- Goods Receipts (delivery records): poNumber, receivedAmount, receivedDate, status\n\n**QuickBooks** - connect a credential on both QuickBooks steps. Vendor names on invoices must match the vendor's display name in QuickBooks. The bill is entered at the amount to pay, after retention is held back.\n\n**Errors** - already wired: Settings > Error Workflow points at this workflow. Re-select it if you import a copy.\n\n**Per-email runs** - **Hand Each Email To Its Own Run** calls this same workflow by ID. If you import a copy, point it at the copy.",
+        "height": 620,
+        "width": 520,
+        "color": 3
+      }
+    },
+    {
+      "id": "42e895ff-c8ad-464e-970c-4dffccd1b109",
+      "name": "Sticky Note d9d37a6e",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7152,
+        608
+      ],
+      "parameters": {
+        "content": "## How invoices are checked\n\n**Materials and equipment** - the invoice, purchase order (PO) and delivery record must all agree, within 2%.\n\n**Progress payments, change orders, final payments** - there's no delivery record, so the numbers must add up instead:\n- Total billed so far can't exceed the contract value\n- Total billed so far minus what was already approved must equal this bill\n- Retention (a % held back until the job is finished) must be applied\n- A lien waiver (the subcontractor's signed release) must be attached\n\nThis is where construction companies actually lose money: paying for the same work twice, paying in full when some should be held back, or paying without a signed release.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "450d010c-5e06-4bab-926b-9ca282a8b224",
+      "name": "Search Invoice Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        1648,
+        496
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AP Invoice Automation"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Audit Log"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoiceKey",
+              "lookupValue": "={{ $json.invoiceKey }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "704cc02e-5267-4355-90e3-13b250558082",
+      "name": "Save To Invoice Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        6608,
+        704
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AP Invoice Automation"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Audit Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "claimType": "={{ $('Check Invoice & Flag Issues').item.json.claimType }}",
+            "costCode": "={{ $('Check Invoice & Flag Issues').item.json.costCode }}",
+            "executionId": "={{ $execution.id }}",
+            "invoiceKey": "={{ $('Check Invoice & Flag Issues').item.json.invoiceKey }}",
+            "invoiceNumber": "={{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }}",
+            "jobNumber": "={{ $('Check Invoice & Flag Issues').item.json.jobNumber }}",
+            "netPayable": "={{ $('Check Invoice & Flag Issues').item.json.netPayable }}",
+            "outcome": "={{ $json.Id ? 'posted' : ($('Alert - Vendor Not In QuickBooks').isExecuted ? 'approved_vendor_missing' : ($('Alert - No Expense Account').isExecuted ? 'approved_no_account' : ($('Alert - No Decision In Time').isExecuted ? 'no_decision' : 'rejected'))) }}",
+            "poNumber": "={{ $('Check Invoice & Flag Issues').item.json.poNumber }}",
+            "processedAt": "={{ $now.toUTC().toISO() }}",
+            "retentionAmount": "={{ $('Check Invoice & Flag Issues').item.json.retentionAmount }}",
+            "riskFlags": "={{ $('Check Invoice & Flag Issues').item.json.riskFlags.join(\", \") }}",
+            "totalAmount": "={{ $('Check Invoice & Flag Issues').item.json.totalAmount }}",
+            "vendorName": "={{ $('Check Invoice & Flag Issues').item.json.vendorName }}"
+          },
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "invoiceKey",
+              "id": "invoiceKey",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "vendorName",
+              "id": "vendorName",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "invoiceNumber",
+              "id": "invoiceNumber",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "poNumber",
+              "id": "poNumber",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "jobNumber",
+              "id": "jobNumber",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "costCode",
+              "id": "costCode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "claimType",
+              "id": "claimType",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "totalAmount",
+              "id": "totalAmount",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "retentionAmount",
+              "id": "retentionAmount",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "netPayable",
+              "id": "netPayable",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "riskFlags",
+              "id": "riskFlags",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "outcome",
+              "id": "outcome",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "processedAt",
+              "id": "processedAt",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "executionId",
+              "id": "executionId",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      }
+    },
+    {
+      "id": "7cb53473-b7eb-4b3b-9dd9-a1a19e9e8595",
+      "name": "When Workflow Fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "964e494d-7526-4b73-b95f-2a3ddd1d7bc2",
+      "name": "Build Error Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        1200
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "workflowName",
+              "value": "={{ $json.workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "failedNode",
+              "value": "={{ $json.execution.lastNodeExecuted }}",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "errorMessage",
+              "value": "={{ $json.execution.error.message }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "executionUrl",
+              "value": "={{ $json.execution.url }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "executionId",
+              "value": "={{ $json.execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "e6",
+              "name": "failedAt",
+              "value": "={{ $now.toUTC().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "09c051c8-f254-48a8-8d16-5b9b4c967e16",
+      "name": "Alert - Workflow Failed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        448,
+        1168
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:rotating_light: *Invoice workflow failed*\nWorkflow: {{ $json.workflowName }}\nStep that failed: *{{ $json.failedNode }}*\nError: {{ $json.errorMessage }}\nRun ID: {{ $json.executionId }}\n{{ $json.executionUrl }}\n\n{{ $json.failedNode === 'Save To Invoice Log' ? 'The approval decision was made but NOT logged. If it was approved, the bill may ALREADY be in QuickBooks - check QuickBooks before entering anything, then add the row to the Audit Log by hand so a re-sent copy is caught as a duplicate. The email was left unread.' : 'The invoice was NOT added to QuickBooks and will NOT be picked up again automatically (the Gmail check only looks at new emails). Open the run above, fix the cause, then process this invoice manually.' }}",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "41d895a4-bea7-4aec-8bd8-7af66be7f7bb",
+      "name": "Log Error To Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "position": [
+        448,
+        1312
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AP Invoice Automation"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Error Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "failedAt": "={{ $('Build Error Summary').item.json.failedAt }}",
+            "workflowName": "={{ $('Build Error Summary').item.json.workflowName }}",
+            "failedNode": "={{ $('Build Error Summary').item.json.failedNode }}",
+            "errorMessage": "={{ $('Build Error Summary').item.json.errorMessage }}",
+            "executionUrl": "={{ $('Build Error Summary').item.json.executionUrl }}",
+            "executionId": "={{ $('Build Error Summary').item.json.executionId }}"
+          },
+          "schema": [
+            {
+              "id": "failedAt",
+              "displayName": "failedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflowName",
+              "displayName": "workflowName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "failedNode",
+              "displayName": "failedNode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "errorMessage",
+              "displayName": "errorMessage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "executionUrl",
+              "displayName": "executionUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "executionId",
+              "displayName": "executionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      }
+    },
+    {
+      "id": "0f5f84f0-8ce1-489d-b6f6-ec697397ecb8",
+      "name": "Phase 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -64
+      ],
+      "parameters": {
+        "content": "## 1 · Receive the invoice\n\nEvery 5 minutes, checks Gmail for unread emails with a PDF attached. **Each email is handed to its own run** of this workflow, so two invoices arriving together are both processed and one waiting for approval never holds up the next.\n\nEmails without a PDF are ignored. If the PDF is a scanned image with no readable text, the team gets a Slack alert instead of the AI receiving a blank page.",
+        "height": 980,
+        "width": 1424,
+        "color": 7
+      }
+    },
+    {
+      "id": "0c7af532-aa2d-401f-86ed-3515231f33ba",
+      "name": "Phase 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        -64
+      ],
+      "parameters": {
+        "content": "## 2 · Skip duplicates\n\n**Check 1 (before AI):** each email gets an ID (email ID + file name), checked against the Invoice Log so a reprocessed email costs nothing.\n\n**Check 2 (after AI):** vendor + invoice number is checked against invoices already **posted**. This catches the same invoice re-sent in a new email. Rejected invoices can be resubmitted.\n\nBoth searches always continue when nothing is found - no match means it's new.\n\nNote: Google Sheets can't block duplicates by itself, so two copies arriving at the exact same moment could both get through.",
+        "height": 980,
+        "width": 950,
+        "color": 4
+      }
+    },
+    {
+      "id": "980ff573-8ef6-4f42-a418-75577e937499",
+      "name": "Phase 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        -64
+      ],
+      "parameters": {
+        "content": "## 3 · AI reads the invoice\n\nThe AI pulls out: vendor, invoice and PO numbers, job number, cost code, invoice type, amount billed so far, amount already approved, retention, and whether a lien waiver is attached.\n\nIt's told never to make up a PO, job number or amount, and to keep each billing figure separate - otherwise the math check later is useless.",
+        "height": 980,
+        "width": 560,
+        "color": 6
+      }
+    },
+    {
+      "id": "394996f5-7898-4516-ac7b-ae042603da06",
+      "name": "Phase 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        -64
+      ],
+      "parameters": {
+        "content": "## 4 · Compare with records\n\nIf the AI isn't sure it read the invoice correctly, a person checks it in Slack first. **Looks correct** continues; **Stop** ends the run so the invoice can be entered manually.\n\nThe invoice is then compared with the purchase order and delivery record in Airtable. If either is missing, the invoice still continues and is flagged for review instead of silently stopping.\n\nBoth lookups retry automatically if Airtable is briefly unavailable.",
+        "height": 980,
+        "width": 1830,
+        "color": 5
+      }
+    },
+    {
+      "id": "8c485838-a0bc-44b1-803c-010c936a5662",
+      "name": "Phase 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4752,
+        -64
+      ],
+      "parameters": {
+        "content": "## 5 · Approval\n\nInvoices with any issue → AP specialist reviews. Clean invoices → budget owner approves. Clean invoices move fast; only problems need extra attention.\n\nBoth approvals happen in Slack, and the workflow waits up to 2 days for an answer.\n\n**No answer in 2 days is not a rejection** - it gets its own alert and is logged as *no_decision*.",
+        "height": 980,
+        "width": 930,
+        "color": 2
+      }
+    },
+    {
+      "id": "bc6f8513-e9ad-4e3e-bf44-54807fe03cfb",
+      "name": "Phase 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5680,
+        -64
+      ],
+      "parameters": {
+        "content": "## 6 · Add to QuickBooks & log\n\nThe expense account comes from the PO's **qboAccountId**. If there is no PO or no account, the approved bill is not posted and the team is asked to enter it by hand.\n\nThe vendor is then looked up in QuickBooks by display name. If it isn't found, the bill is not added and the team gets a Slack alert.\n\nQuickBooks gets the **amount to pay** (after retention is held back), not the full invoice total.\n\nEvery invoice is saved to the Invoice Log - posted, rejected, no_decision, vendor missing or no account. Every path ends by marking the email as read.",
+        "height": 980,
+        "width": 1400,
+        "color": 4
+      }
+    },
+    {
+      "id": "c4060f29-e078-411f-a04b-38463beb1014",
+      "name": "Phase 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        928
+      ],
+      "parameters": {
+        "content": "## 7 · If something breaks\n\nThis branch runs whenever a live run fails. It works because the workflow is its own error workflow (**Settings > Error Workflow = this workflow**). If you import or duplicate it, select the copy there again. Manual test runs don't trigger it.\n\nIt posts a Slack alert and logs the error to the Error Log tab. The alert says whether the bill could already be in QuickBooks.\n\n**The failed invoice is not retried automatically** - the Gmail check only looks at new emails. Process it manually from the link in the alert.",
+        "height": 548,
+        "width": 1100,
+        "color": 3
+      }
+    },
+    {
+      "id": "336ccb60-0664-49a8-a256-51cdb4929c36",
+      "name": "Team Confirmed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3392,
+        720
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1dfb3904-e195-4a64-8f87-3c615304ab19",
+      "name": "Stopped - Enter Manually",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3616,
+        736
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "6f27887b-22da-425c-a033-1e12290047e4",
+      "name": "Find PDF Attachment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        528
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Gmail names attachments attachment_0, attachment_1, ...\n// Pick the first PDF, whatever position it's in (a logo image is often first).\nconst b = $input.item.binary || {};\nconst key = Object.keys(b).find(k => {\n  const f = b[k] || {};\n  return String(f.mimeType || '').toLowerCase().includes('pdf') || String(f.fileName || '').toLowerCase().endsWith('.pdf');\n});\nif (key) {\n  return { json: $input.item.json, binary: { invoicePdf: b[key] } };\n}\nreturn { json: $input.item.json };"
+      }
+    },
+    {
+      "id": "91b48b06-7fdc-4da7-b649-a8fc722342af",
+      "name": "Search Log By Invoice Number",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "position": [
+        3584,
+        496
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "cachedResultName": "AP Invoice Automation"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Audit Log"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "vendorName",
+              "lookupValue": "={{ $('AI Reads Invoice').item.json.output.vendorName }}"
+            },
+            {
+              "lookupColumn": "invoiceNumber",
+              "lookupValue": "={{ $('AI Reads Invoice').item.json.output.invoiceNumber }}"
+            },
+            {
+              "lookupColumn": "outcome",
+              "lookupValue": "posted"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2514e4ff-27e1-436a-a211-b75d8fd264fd",
+      "name": "Invoice Number Already Posted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3760,
+        496
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.invoiceNumber ?? '' }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0a632b59-056b-443f-b479-198b9ac2707f",
+      "name": "Find QuickBooks Vendor",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        5952,
+        304
+      ],
+      "parameters": {
+        "resource": "vendor",
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "query": "=WHERE DisplayName = '{{ String($('Check Invoice & Flag Issues').item.json.vendorName || '').replace(/'/g, \"\\\\'\") }}'"
+        }
+      }
+    },
+    {
+      "id": "1e817884-e7b8-432c-8a94-671b604bbdd4",
+      "name": "Vendor In QuickBooks?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6176,
+        304
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.Id ?? '' }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9b6813b9-b94c-49be-b5ba-25ccf721eecf",
+      "name": "Alert - Vendor Not In QuickBooks",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        6400,
+        496
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:warning: *Approved invoice NOT added - vendor not found in QuickBooks*\nVendor on invoice: *{{ $('Check Invoice & Flag Issues').item.json.vendorName }}*\nInvoice #: {{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }} | Job #: {{ $('Check Invoice & Flag Issues').item.json.jobNumber }}\nAmount to pay: {{ $('Check Invoice & Flag Issues').item.json.currency }} {{ $('Check Invoice & Flag Issues').item.json.netPayable }}\n\nThe vendor name must match the QuickBooks vendor's display name exactly. Add or rename the vendor, then enter this bill manually.",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "734793c3-8cc4-4872-a685-0e540b9dfbfe",
+      "name": "Mark Skipped Email As Read",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        2096,
+        704
+      ],
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Process One Invoice Email').item.json.id }}"
+      }
+    },
+    {
+      "id": "b1c2d3e4-1111-4a2b-9c3d-0e1f2a3b4c01",
+      "name": "Hand Each Email To Its Own Run",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        320
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "THIS_WORKFLOW_ID",
+          "cachedResultName": "Braewick Construction Group - AI Invoice Processing & Approval"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "b1c2d3e4-2222-4a2b-9c3d-0e1f2a3b4c02",
+      "name": "Process One Invoice Email",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        528
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "b1c2d3e4-3333-4a2b-9c3d-0e1f2a3b4c03",
+      "name": "Answered In Time?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5232,
+        528
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ typeof $json.data?.approved === 'boolean' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "condition-1792468289470-wfbvydlf6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b1c2d3e4-4444-4a2b-9c3d-0e1f2a3b4c04",
+      "name": "Alert - No Decision In Time",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        5456,
+        704
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:hourglass: *Invoice approval timed out - nobody answered within 2 days*\n{{ $('Check Invoice & Flag Issues').item.json.vendorName }} | {{ $('Check Invoice & Flag Issues').item.json.claimLabel }}\nInvoice #: {{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }} | Job #: {{ $('Check Invoice & Flag Issues').item.json.jobNumber }}\nAmount to pay: {{ $('Check Invoice & Flag Issues').item.json.currency }} {{ $('Check Invoice & Flag Issues').item.json.netPayable }}\n\nIt was NOT added to QuickBooks. It is logged as *no_decision*, not rejected. Decide on it and enter it in QuickBooks manually, or ask the vendor to resend it.",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "b1c2d3e4-5555-4a2b-9c3d-0e1f2a3b4c05",
+      "name": "Expense Account Known?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5728,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($('Find Purchase Order').item.json.qboAccountId ?? '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "id": "condition-1792468289471-jju5xvrll"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b1c2d3e4-6666-4a2b-9c3d-0e1f2a3b4c06",
+      "name": "Alert - No Expense Account",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "position": [
+        5952,
+        528
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SLACK_CHANNEL_ID"
+        },
+        "text": "=:warning: *Approved invoice NOT added - no QuickBooks expense account*\nVendor: *{{ $('Check Invoice & Flag Issues').item.json.vendorName }}*\nInvoice #: {{ $('Check Invoice & Flag Issues').item.json.invoiceNumber }} | PO #: {{ $('Check Invoice & Flag Issues').item.json.poNumber || 'none' }} | Job #: {{ $('Check Invoice & Flag Issues').item.json.jobNumber }}\nAmount to pay: {{ $('Check Invoice & Flag Issues').item.json.currency }} {{ $('Check Invoice & Flag Issues').item.json.netPayable }}\n\nThe expense account comes from the purchase order's *qboAccountId*, and {{ $('Check Invoice & Flag Issues').item.json.riskFlags.includes('Purchase order not found') ? 'no matching purchase order was found' : 'that purchase order has no qboAccountId' }}. Enter this bill in QuickBooks manually.",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "b9c0d1e2-flat-4f3a-8b4c-bwflatpo0001",
+      "name": "Find Purchase Order",
+      "notes": "Flattens the Airtable search result so later steps read fields by name.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4128,
+        512
+      ],
+      "parameters": {
+        "jsCode": "// Airtable search returns { id, createdTime, fields: {...} }. Flatten it so\n// later steps can read the record's fields directly by name.\nreturn $input.all().map((it, i) => {\n  const j = it.json || {};\n  const flat = j.fields ? Object.assign({ id: j.id, createdTime: j.createdTime }, j.fields) : j;\n  return { json: flat, pairedItem: { item: i } };\n});"
+      }
+    },
+    {
+      "id": "b9c0d1e2-flat-4f3a-8b4c-bwflatgr00001",
+      "name": "Find Delivery Record",
+      "notes": "Flattens the Airtable search result so later steps read fields by name.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4480,
+        512
+      ],
+      "parameters": {
+        "jsCode": "// Airtable search returns { id, createdTime, fields: {...} }. Flatten it so\n// later steps can read the record's fields directly by name.\nreturn $input.all().map((it, i) => {\n  const j = it.json || {};\n  const flat = j.fields ? Object.assign({ id: j.id, createdTime: j.createdTime }, j.fields) : j;\n  return { json: flat, pairedItem: { item: i } };\n});"
+      }
+    }
+  ],
+  "connections": {
+    "Has PDF Attachment?": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore - Not An Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Text Extracted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Extracted?": {
+      "main": [
+        [
+          {
+            "node": "Create Invoice ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - Scanned PDF, Enter Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Reads Invoice",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Expense Account Known?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - Invoice Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Summary": {
+      "main": [
+        [
+          {
+            "node": "Alert - Workflow Failed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Error To Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seen This Invoice Before?": {
+      "main": [
+        [
+          {
+            "node": "Alert - Duplicate Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Reads Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sure Of The Details?": {
+      "main": [
+        [
+          {
+            "node": "Search Log By Invoice Number",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask Team To Check Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Issues Found?": {
+      "main": [
+        [
+          {
+            "node": "Review Invoice With Issues",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Approve Clean Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Bill To QuickBooks": {
+      "main": [
+        [
+          {
+            "node": "Save To Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - Invoice Rejected": {
+      "main": [
+        [
+          {
+            "node": "Save To Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Invoice Log": {
+      "main": [
+        [
+          {
+            "node": "Seen This Invoice Before?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save To Invoice Log": {
+      "main": [
+        [
+          {
+            "node": "Mark Email As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Workflow Fails": {
+      "main": [
+        [
+          {
+            "node": "Build Error Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Invoice ID": {
+      "main": [
+        [
+          {
+            "node": "Search Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Reads Invoice": {
+      "main": [
+        [
+          {
+            "node": "AI Sure Of The Details?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Invoice & Flag Issues": {
+      "main": [
+        [
+          {
+            "node": "Any Issues Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Team To Check Details": {
+      "main": [
+        [
+          {
+            "node": "Team Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Team Confirmed?": {
+      "main": [
+        [
+          {
+            "node": "Search Log By Invoice Number",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stopped - Enter Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find PDF Attachment": {
+      "main": [
+        [
+          {
+            "node": "Has PDF Attachment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Log By Invoice Number": {
+      "main": [
+        [
+          {
+            "node": "Invoice Number Already Posted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Number Already Posted?": {
+      "main": [
+        [
+          {
+            "node": "Alert - Duplicate Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Purchase Order Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find QuickBooks Vendor": {
+      "main": [
+        [
+          {
+            "node": "Vendor In QuickBooks?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vendor In QuickBooks?": {
+      "main": [
+        [
+          {
+            "node": "Add Bill To QuickBooks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - Vendor Not In QuickBooks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - Vendor Not In QuickBooks": {
+      "main": [
+        [
+          {
+            "node": "Save To Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore - Not An Invoice": {
+      "main": [
+        [
+          {
+            "node": "Mark Skipped Email As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - Scanned PDF, Enter Manually": {
+      "main": [
+        [
+          {
+            "node": "Mark Skipped Email As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - Duplicate Invoice": {
+      "main": [
+        [
+          {
+            "node": "Mark Skipped Email As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stopped - Enter Manually": {
+      "main": [
+        [
+          {
+            "node": "Mark Skipped Email As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Hand Each Email To Its Own Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Find PDF Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Invoice With Issues": {
+      "main": [
+        [
+          {
+            "node": "Answered In Time?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve Clean Invoice": {
+      "main": [
+        [
+          {
+            "node": "Answered In Time?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answered In Time?": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - No Decision In Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - No Decision In Time": {
+      "main": [
+        [
+          {
+            "node": "Save To Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expense Account Known?": {
+      "main": [
+        [
+          {
+            "node": "Find QuickBooks Vendor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - No Expense Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - No Expense Account": {
+      "main": [
+        [
+          {
+            "node": "Save To Invoice Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Purchase Order Record": {
+      "main": [
+        [
+          {
+            "node": "Find Purchase Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Purchase Order": {
+      "main": [
+        [
+          {
+            "node": "Find Delivery Record (Airtable)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Delivery Record (Airtable)": {
+      "main": [
+        [
+          {
+            "node": "Find Delivery Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Delivery Record": {
+      "main": [
+        [
+          {
+            "node": "Check Invoice & Flag Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Asia/Manila"
+  },
+  "pinData": {}
+}
