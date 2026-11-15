@@ -177,7 +177,7 @@
         592
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -229,7 +229,7 @@
         704
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -371,7 +371,7 @@
         720
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "operation": "sendAndWait",
         "select": "channel",
         "channelId": {
@@ -517,7 +517,7 @@
         320
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "operation": "sendAndWait",
         "select": "channel",
         "channelId": {
@@ -552,7 +552,7 @@
         704
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "operation": "sendAndWait",
         "select": "channel",
         "channelId": {
@@ -651,7 +651,7 @@
         720
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -997,7 +997,7 @@
         1168
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -1418,7 +1418,7 @@
         496
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -1534,7 +1534,7 @@
         704
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -1592,7 +1592,7 @@
         528
       ],
       "parameters": {
-        "authentication": "oAuth2",
+        "authentication": "accessToken",
         "select": "channel",
         "channelId": {
           "__rl": true,

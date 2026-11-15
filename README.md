@@ -37,7 +37,7 @@ Triggers: `New Invoice Email`, `When Workflow Fails`, `Process One Invoice Email
 1. In n8n, open **Workflows → Import from File** and choose `workflow.json`.
 2. Create these credentials and select them on the nodes that need them:
 
-   - Slack (OAuth2) (10 nodes)
+   - Slack API (bot token) (10 nodes): a Slack app's bot token, with the bot invited to the channel
    - Google Sheets (OAuth2) (4 nodes)
    - Gmail (OAuth2) (3 nodes)
    - Airtable (personal access token) (2 nodes)
